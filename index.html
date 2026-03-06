@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>娇的好友专属解压小游戏</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'ZCOOL KuaiLe', cursive; background-color: #FFF5E1; }
+        .pixel-border { border: 4px solid #000; box-shadow: 4px 4px 0px #000; }
+        .grid-item { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .lucky-bg { background-color: #FDE047; }
+        .unlucky-bg { background-color: #94A3B8; }
+        .hidden-node { display: none; }
+        @keyframes pixel-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .animate-pixel { animation: pixel-bounce 1s infinite; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 overflow-hidden">
+
+    <div id="cover-page" class="text-center">
+        <h1 class="text-3xl font-bold text-orange-800 mb-8">娇的好友专属解压小游戏</h1>
+        <div class="w-64 h-48 bg-orange-200 rounded-xl mx-auto mb-10 border-4 border-white shadow-xl flex items-center justify-center gap-4">
+            <div class="w-8 h-12 bg-pink-400 rounded-t-lg animate-pixel" style="animation-delay: 0.1s;"></div>
+            <div class="w-8 h-12 bg-orange-400 rounded-t-lg animate-pixel" style="animation-delay: 0.3s;"></div>
+            <div class="w-8 h-12 bg-yellow-400 rounded-t-lg animate-pixel" style="animation-delay: 0.5s;"></div>
+        </div>
+        <button onclick="startGame()" class="px-10 py-4 bg-orange-500 text-white text-xl rounded-lg border-b-8 border-orange-700 active:border-b-0 active:translate-y-2 transition-all font-bold">
+            开始解压
+        </button>
+    </div>
+
+    <div id="game-page" class="hidden-node w-full max-w-sm">
+        <div class="flex justify-between items-center mb-6 px-2 text-orange-900">
+            <span class="text-lg font-bold">已翻开: <span id="click-count">0</span>/5</span>
+            <div id="heart-container" class="flex gap-1"></div>
+        </div>
+
+        <div id="grid-container" class="grid grid-cols-6 gap-2 bg-orange-100 p-3 rounded-xl border-4 border-orange-200 shadow-inner">
+            </div>
+
+        <div id="event-toast" class="invisible mt-6 p-4 bg-white rounded-xl border-4 border-orange-100 text-center text-orange-900 font-bold shadow-lg animate-bounce">
+            </div>
+    </div>
+
+    <div id="result-modal" class="hidden-node fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6 z-50">
+        <div id="modal-content" class="p-8 rounded-[2rem] border-4 border-white shadow-2xl text-center max-w-xs transform scale-110">
+            <h2 id="result-title" class="text-4xl font-black mb-4"></h2>
+            <p id="result-text" class="text-lg font-bold mb-8 leading-relaxed text-gray-800"></p>
+            <button onclick="startGame()" class="w-full py-3 bg-white/80 hover:bg-white rounded-xl font-bold transition-colors">
+                🔄 再来一把
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const luckyPool = ["锦鲤附体！刮刮乐中了1000块！", "职场飞升，跳槽薪资翻倍！", "口袋里发现了100块现金！", "一路绿灯没排队！", "带薪摸鱼，老板出差一周！", "想吃的餐厅不用排队！", "暗恋对象发来晚安！", "棘手工作10分钟搞定！", "邻居终于停止装修了！", "宝贝突然打5折！", "聚会突然取消了！", "吃火锅体重居然掉了！", "快递傍晚就敲门！", "邮箱全是“收到辛苦了”！", "自然醒发现是周六！", "想起断片密码了！", "下雨天有人为你撑伞！", "一把抽中SSR角色！", "饮料开盖再来一瓶！", "和闺蜜吐槽完心情大爽！"];
+        const unluckyPool = ["没带伞结果下大雨了！", "领导说方案不如第一版！", "临下班加10条需求！", "房租账单先到了！", "手机只剩1%电！", "路上认错人还拍了肩膀！", "奶茶外卖洒了！", "闹钟没响醒来10点！", "下一趟电梯要等5分钟！", "文档没保存蓝屏了！", "同事分零食破坏减肥！", "牙缝塞了菜叶！", "耳机线打成了死结！", "想起5年前一件糗事！", "差 1 秒没赶上公交！", "隔壁电钻装修！", "洗一半突然停水了！", "护肤品过敏脸肿了！", "连抽三个全是重复款！", "关键时刻WiFi断了！"];
+
+        let selections = [];
+
+        function startGame() {
+            document.getElementById('cover-page').classList.add('hidden-node');
+            document.getElementById('result-modal').classList.add('hidden-node');
+            document.getElementById('game-page').classList.remove('hidden-node');
+            
+            selections = [];
+            document.getElementById('click-count').innerText = '0';
+            document.getElementById('event-toast').classList.add('invisible');
+            
+            // 初始化爱心进度
+            const hearts = document.getElementById('heart-container');
+            hearts.innerHTML = Array(5).fill('<span class="opacity-30">🧡</span>').join('');
+
+            // 初始化格子
+            const container = document.getElementById('grid-container');
+            container.innerHTML = '';
+            
+            const pool = [...luckyPool.map(t => ({t, s:'lucky'})), ...unluckyPool.map(t => ({t, s:'unlucky'}))]
+                .sort(() => Math.random() - 0.5).slice(0, 36);
+
+            pool.forEach((item, i) => {
+                const div = document.createElement('div');
+                div.className = 'grid-item aspect-square bg-orange-300 rounded cursor-pointer border-b-4 border-orange-400 active:border-b-0 flex items-center justify-center text-[10px]';
+                div.onclick = () => handleFlip(div, item);
+                container.appendChild(div);
+            });
+        }
+
+        function handleFlip(el, item) {
+            if (selections.length >= 5 || el.classList.contains('flipped')) return;
+
+            el.classList.add('flipped');
+            el.innerHTML = item.s === 'lucky' ? '✨' : '🌧️';
+            el.className = `grid-item aspect-square rounded flex items-center justify-center text-lg ${item.s === 'lucky' ? 'lucky-bg' : 'unlucky-bg text-white'}`;
+            
+            selections.push(item);
+            document.getElementById('click-count').innerText = selections.length;
+            
+            // 更新爱心
+            const hearts = document.querySelectorAll('#heart-container span');
+            hearts[selections.length - 1].className = 'opacity-100';
+
+            // 显示文案
+            const toast = document.getElementById('event-toast');
+            toast.classList.remove('invisible');
+            toast.innerText = item.t;
+
+            if (selections.length === 5) {
+                setTimeout(showResult, 1000);
+            }
+        }
+
+        function showResult() {
+            const luckyCount = selections.filter(s => s.s === 'lucky').length;
+            const modal = document.getElementById('result-modal');
+            const title = document.getElementById('result-title');
+            const text = document.getElementById('result-text');
+            const content = document.getElementById('modal-content');
+
+            modal.classList.remove('hidden-node');
+
+            if (luckyCount === 5) {
+                title.innerText = "YOU WIN!";
+                text.innerText = "娇祝你所有都一帆风顺，勇敢去做你想做的事吧。";
+                content.className = "p-8 rounded-[2rem] border-4 border-white shadow-2xl text-center max-w-xs bg-yellow-200";
+            } else if (luckyCount >= 3) {
+                title.innerText = "好棒呀";
+                text.innerText = "哎呀，就差一点，那就祝你勇敢战胜困难，从此人生一片坦荡！";
+                content.className = "p-8 rounded-[2rem] border-4 border-white shadow-2xl text-center max-w-xs bg-orange-100";
+            } else if (luckyCount >= 1) {
+                title.innerText = "摸摸头";
+                text.innerText = "有点小倒霉，但是没关系，洗个手再来一把吧！";
+                content.className = "p-8 rounded-[2rem] border-4 border-white shadow-2xl text-center max-w-xs bg-blue-100";
+            } else {
+                title.innerText = "有娇在呢";
+                text.innerText = "啊哦，上天今天好像没有眷顾你，但娇眷顾你，快去求安慰吧！";
+                content.className = "p-8 rounded-[2rem] border-4 border-white shadow-2xl text-center max-w-xs bg-purple-100";
+            }
+        }
+    </script>
+</body>
+</html>
