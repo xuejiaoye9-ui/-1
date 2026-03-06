@@ -14,22 +14,27 @@
             font-size: 2.4rem;
             line-height: 1.2;
         }
-        /* 核心逻辑：层级管理 */
         .screen { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 10; background: #FFF5E1; }
-        #cover-screen { display: flex; z-index: 20; } /* 初始唯一可见 */
+        #cover-screen { display: flex; z-index: 20; }
         #modal-overlay { z-index: 50; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); }
         #result-screen { z-index: 100; background: rgba(0,0,0,0.7); }
 
-        /* 封面像素女孩 */
         .girl-pixel { width: 35px; height: 50px; border-radius: 8px 8px 0 0; animation: girl-bounce 1.2s infinite ease-in-out; }
         @keyframes girl-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
 
-        /* 40个彩色方块样式 */
         .pixel-box { aspect-ratio: 1; border-radius: 6px; cursor: pointer; border-bottom: 4px solid rgba(0,0,0,0.15); transition: all 0.1s; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
         .pixel-box:active { transform: scale(0.95); border-bottom-width: 0; }
+
+        /* 音乐旋转动画 */
+        .music-spin { animation: spin 3s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+
+    <audio id="bgm" loop>
+        <source src="https://music.163.com/song/media/outer/url?id=5263078.mp3" type="audio/mpeg">
+    </audio>
 
     <div id="cover-screen" class="screen">
         <h1 class="art-title mb-10 text-center px-4">娇的好友专属<br>解压小游戏</h1>
@@ -50,7 +55,7 @@
         <div class="bg-white p-10 rounded-[3rem] border-4 border-orange-400 text-center scale-110 shadow-2xl">
             <h3 class="text-orange-800 text-xl font-bold mb-8">准备好开启好运了吗？</h3>
             <div class="flex justify-center mb-8">
-                <button id="bgm-toggle" onclick="this.innerText = this.innerText === '🎵' ? '🔇' : '🎵'" class="w-16 h-16 bg-orange-50 rounded-full text-3xl flex items-center justify-center border-2 border-orange-200">🎵</button>
+                <button id="bgm-toggle" onclick="toggleBGM()" class="w-16 h-16 bg-orange-50 rounded-full text-3xl flex items-center justify-center border-2 border-orange-200 music-spin">🎵</button>
             </div>
             <button onclick="toGame()" class="w-full py-4 bg-orange-500 text-white rounded-2xl text-xl font-black shadow-lg">
                 开始游戏
@@ -65,9 +70,7 @@
             </div>
             <div id="heart-row" class="flex gap-1 text-xl"></div>
         </div>
-
         <div id="grid-container" class="grid grid-cols-5 gap-3 w-full max-w-[340px] px-4"></div>
-
         <div id="text-bubble" class="mt-8 mx-4 p-6 bg-white rounded-[2rem] border-4 border-orange-200 text-center font-bold text-orange-900 min-h-[110px] w-[320px] flex items-center justify-center shadow-lg opacity-0 transition-opacity"></div>
     </div>
 
@@ -83,18 +86,38 @@
     </div>
 
     <script>
-        // 事件池数据
         const LUCKY = ["锦鲤附体！刮刮乐中了1000块！", "职场飞升，跳槽薪资翻倍！", "口袋里发现了100块现金！", "一路绿灯，没排队就进了电梯！", "带薪摸鱼，老板出差一周！", "美食降临，想吃的餐厅不用排队！", "屏幕之光，暗恋对象发来晚安！", "灵感爆发，棘手工作10分钟搞定！", "降噪世界，邻居终于停止装修了！", "购物自由，宝贝突然打5折！", "社交救星，聚会突然取消了！", "体重惊喜，吃完火锅体重居然还掉了！", "快递神速，傍晚快递就敲门！", "清空红点，邮箱全是“收到辛苦了”！", "睡眠之神，自然醒发现是周六！", "记忆找回，想起断片密码了！", "专属温暖，下雨天有人为你撑伞！", "一把抽中SSR角色！", "饮料开盖再来一瓶！", "和闺蜜吐槽完心情大爽！"];
         const UNLUCKY = ["没带伞结果下大雨了！", "领导说方案不如第一版！", "临下班加10条需求！", "房租账单先到了！", "手机只剩1%电！", "路上认错人还拍了肩膀！", "奶茶外卖洒了！", "闹钟没响醒来10点！", "下一趟电梯要等5分钟！", "文档没保存蓝屏了！", "身体抗议，同事分零食破坏减肥！", "尴尬瞬间，牙缝塞了菜叶！", "耳机线打成了死结！", "想起5年前一件糗事！", "差 1 秒没赶上公交！", "隔壁电钻装修！", "洗一半突然停水了！", "护肤品过敏脸肿了！", "连抽三个全是重复款！", "关键时刻WiFi断了！"];
         const COLORS = ['#F87171', '#FB923C', '#FBBF24', '#34D399', '#60A5FA', '#818CF8', '#A78BFA', '#F472B6'];
         
         let chosen = [];
+        const audio = document.getElementById('bgm');
+        const musicBtn = document.getElementById('bgm-toggle');
+        let musicActive = true;
+
+        function toggleBGM() {
+            musicActive = !musicActive;
+            if (musicActive) {
+                musicBtn.innerText = '🎵';
+                musicBtn.classList.add('music-spin');
+                audio.play();
+            } else {
+                musicBtn.innerText = '🔇';
+                musicBtn.classList.remove('music-spin');
+                audio.pause();
+            }
+        }
 
         function showModal() {
             document.getElementById('modal-overlay').style.display = 'flex';
         }
 
         function toGame() {
+            // 开始游戏时尝试播放音乐
+            if (musicActive) {
+                audio.play().catch(() => console.log("等待用户交互后播放"));
+            }
+
             document.getElementById('cover-screen').style.display = 'none';
             document.getElementById('modal-overlay').style.display = 'none';
             document.getElementById('game-screen').style.display = 'flex';
@@ -104,7 +127,6 @@
             grid.innerHTML = '';
             hearts.innerHTML = Array(5).fill('<span style="opacity:0.2">🧡</span>').join('');
 
-            // 合并 40 个事件并乱序
             const all = [...LUCKY.map(t=>({t, l:1})), ...UNLUCKY.map(t=>({t, l:0}))].sort(()=>Math.random()-0.5);
 
             all.forEach(item => {
@@ -140,16 +162,16 @@
             document.getElementById('result-screen').style.display = 'flex';
 
             if (luckCount === 5) {
-                card.style.backgroundColor = '#FEF08A'; // 纯幸运
+                card.style.backgroundColor = '#FEF08A';
                 setRes("🏆", "好运爆表！", "娇祝你所有都一帆风顺，勇敢去做你想做的事吧。");
             } else if (luckCount > unluckCount) {
-                card.style.backgroundColor = '#FFEDD5'; // 幸运多
+                card.style.backgroundColor = '#FFEDD5';
                 setRes("☀️", "手气不错！", "哎呀，就差一点，那就祝你勇敢战胜困难，从此人生一片坦荡！");
             } else if (unluckCount === 5) {
-                card.style.backgroundColor = '#E9D5FF'; // 全不幸
+                card.style.backgroundColor = '#E9D5FF';
                 setRes("🧸", "娇在护体！", "啊哦，上天今天好像没有眷顾你，但娇眷顾你，快去求安慰吧！");
             } else {
-                card.style.backgroundColor = '#DBEAFE'; // 不幸多
+                card.style.backgroundColor = '#DBEAFE';
                 setRes("🥤", "小小心情~", "有点小倒霉，但是没关系，洗个手再来一把吧！");
             }
         }
